@@ -11,6 +11,7 @@
 #import "CBUUID+StringExtraction.h"
 
 @interface UARTPeripheral ()
+
 @property CBService *uartService;
 @property CBCharacteristic *rxCharacteristic;
 @property CBCharacteristic *txCharacteristic;
@@ -18,13 +19,6 @@
 @end
 
 @implementation UARTPeripheral
-@synthesize peripheral = _peripheral;
-@synthesize delegate = _delegate;
-
-@synthesize uartService = _uartService;
-@synthesize rxCharacteristic = _rxCharacteristic;
-@synthesize txCharacteristic = _txCharacteristic;
-
 
 #pragma mark - UUID Retrieval
 
@@ -65,7 +59,7 @@
 - (UARTPeripheral*)initWithPeripheral:(CBPeripheral*)peripheral
                              delegate:(id<UARTPeripheralDelegate>) delegate {
     
-    if (self = [super init]){
+    if (self = [super init]) {
         self.peripheral = peripheral;
         self.peripheral.delegate = self;
         self.delegate = delegate;
@@ -78,16 +72,15 @@
     
     //Respond to peripheral connection
     
-    if(_peripheral.services){
-        printf("Skipping service discovery for %s\r\n", [_peripheral.name UTF8String]);
+    if (_peripheral.services) {
+        NSLog(@"Skipping service discovery for %@", _peripheral.name);
         [self peripheral:_peripheral didDiscoverServices:nil]; //already discovered services, DO NOT re-discover. Just pass along the peripheral.
         return;
     }
     
-    printf("Starting service discovery for %s\r\n", [_peripheral.name UTF8String]);
+    NSLog(@"Starting service discovery for %@", _peripheral.name);
     
     [_peripheral discoverServices:@[self.class.uartServiceUUID, self.class.deviceInformationServiceUUID]];
-    
 }
 
 
@@ -112,14 +105,14 @@
     
     //Send data to peripheral
     
-    if ((self.txCharacteristic.properties & CBCharacteristicPropertyWriteWithoutResponse) != 0){
+    if ((self.txCharacteristic.properties & CBCharacteristicPropertyWriteWithoutResponse)) {
         
         [self.peripheral writeValue:data forCharacteristic:self.txCharacteristic type:CBCharacteristicWriteWithoutResponse];
     }
-    else if ((self.txCharacteristic.properties & CBCharacteristicPropertyWrite) != 0){
+    else if ((self.txCharacteristic.properties & CBCharacteristicPropertyWrite)) {
         [self.peripheral writeValue:data forCharacteristic:self.txCharacteristic type:CBCharacteristicWriteWithResponse];
     }
-    else{
+    else {
         NSLog(@"No write property on TX characteristic, %d.", (int)self.txCharacteristic.properties);
     }
     
@@ -128,41 +121,35 @@
 
 - (BOOL)compareID:(CBUUID*)firstID toID:(CBUUID*)secondID {
     
-    if ([[firstID representativeString] compare:[secondID representativeString]] == NSOrderedSame) {
-        return YES;
-    }
-    
-    else
-        return NO;
-    
+    return ([[firstID representativeString] compare:[secondID representativeString]] == NSOrderedSame);
 }
 
 
 - (void)setupPeripheralForUse:(CBPeripheral*)peripheral {
     
-    printf("Set up peripheral for use\r\n");
+    NSLog(@"Set up peripheral for use");
     
     for (CBService *s in peripheral.services) {
         
-        for (CBCharacteristic *c in [s characteristics]){
+        for (CBCharacteristic *c in [s characteristics]) {
             
-            if ([self compareID:c.UUID toID:self.class.rxCharacteristicUUID]){
+            if ([self compareID:c.UUID toID:self.class.rxCharacteristicUUID]) {
                 
-                printf("Found RX characteristic\r\n");
+                NSLog(@"Found RX characteristic");
                 self.rxCharacteristic = c;
                 
                 [self.peripheral setNotifyValue:YES forCharacteristic:self.rxCharacteristic];
             }
             
-            else if ([self compareID:c.UUID toID:self.class.txCharacteristicUUID]){
+            else if ([self compareID:c.UUID toID:self.class.txCharacteristicUUID]) {
                 
-                printf("Found TX characteristic\r\n");
+                NSLog(@"Found TX characteristic");
                 self.txCharacteristic = c;
             }
             
-            else if ([self compareID:c.UUID toID:self.class.hardwareRevisionStringUUID]){
+            else if ([self compareID:c.UUID toID:self.class.hardwareRevisionStringUUID]) {
                 
-                printf("Found Hardware Revision String characteristic\r\n");
+                NSLog(@"Found Hardware Revision String characteristic");
                 [self.peripheral readValueForCharacteristic:c];
                 
                 //Once hardware revision string is read connection will be complete …
@@ -183,7 +170,7 @@
     
     //Respond to finding a new service on peripheral
     
-    printf("Did Discover Services\r\n");
+    NSLog(@"Did Discover Services");
     
     if (!error) {
         
@@ -195,7 +182,7 @@
             
             else if ([self compareID:s.UUID toID:self.class.uartServiceUUID]){
                 
-                printf("Found correct service\r\n");
+                NSLog(@"Found correct service");
                 
                 self.uartService = s;
                 
@@ -211,7 +198,7 @@
     
     else{
         
-        printf("Error discovering services\r\n");
+        NSLog(@"Error discovering services");
         
         [_delegate uartDidEncounterError:@"Error discovering services"];
         
@@ -226,13 +213,13 @@ didDiscoverCharacteristicsForService:(CBService*)service error:(NSError*)error {
     
     //Respond to finding a new characteristic on service
     
-    if (!error){
+    if (!error) {
         
         CBService *s = [peripheral.services objectAtIndex:(peripheral.services.count - 1)];
-        if([self compareID:service.UUID toID:s.UUID]){
+        if ([self compareID:service.UUID toID:s.UUID]) {
             
             //last service discovered
-            printf("Found all characteristics\r\n");
+            NSLog(@"Found all characteristics");
             
             [self setupPeripheralForUse:peripheral];
             
@@ -240,9 +227,9 @@ didDiscoverCharacteristicsForService:(CBService*)service error:(NSError*)error {
         
     }
     
-    else{
+    else {
         
-        printf("Error discovering characteristics: %s\r\n", [error.description UTF8String]);
+        NSLog(@"Error discovering characteristics: %@", error.description);
         
         [_delegate uartDidEncounterError:@"Error discovering characteristics"];
         
@@ -257,19 +244,19 @@ didUpdateValueForCharacteristic:(CBCharacteristic*)characteristic error:(NSError
     
     //Respond to value change on peripheral
     
-    if (!error){
-        if (characteristic == self.rxCharacteristic){
+    if (!error) {
+        if (characteristic == self.rxCharacteristic) {
             
             NSLog(@"Received: %@", [characteristic value]);
             
             [self.delegate didReceiveData:[characteristic value]];
         }
         
-        else if ([self compareID:characteristic.UUID toID:self.class.hardwareRevisionStringUUID]){
+        else if ([self compareID:characteristic.UUID toID:self.class.hardwareRevisionStringUUID]) {
             
             NSString *hwRevision = @"";
             const uint8_t *bytes = characteristic.value.bytes;
-            for (int i = 0; i < characteristic.value.length; i++){
+            for (int i = 0; i < characteristic.value.length; i++) {
                 
                 hwRevision = [hwRevision stringByAppendingFormat:@"0x%x, ", bytes[i]];
             }
@@ -278,9 +265,9 @@ didUpdateValueForCharacteristic:(CBCharacteristic*)characteristic error:(NSError
         }
     }
     
-    else{
+    else {
         
-        printf("Error receiving notification for characteristic %s: %s\r\n", [characteristic.description UTF8String], [error.description UTF8String]);
+        NSLog(@"Error receiving notification for characteristic %@: %@", characteristic.description, error.description);
         
         [_delegate uartDidEncounterError:@"Error receiving notification for characteristic"];
         
@@ -288,6 +275,5 @@ didUpdateValueForCharacteristic:(CBCharacteristic*)characteristic error:(NSError
     }
     
 }
-
 
 @end

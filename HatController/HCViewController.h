@@ -10,7 +10,8 @@
 #import <UIKit/UIKit.h>
 
 #import "UARTPeripheral.h"
+#import "ColorPickerImageView.h"
 
-@interface HCViewController : UIViewController <CBCentralManagerDelegate, UARTPeripheralDelegate>
+@interface HCViewController : UIViewController <CBCentralManagerDelegate, UARTPeripheralDelegate, ColorPickerImageViewDelegate>
 
 @end

@@ -23,6 +23,10 @@
 		EC6A78E3198B8C4A0080E169 /* HatControllerTests.m in Sources */ = {isa = PBXBuildFile; fileRef = EC6A78E2198B8C4A0080E169 /* HatControllerTests.m */; };
 		EC6A78EE198B8C8A0080E169 /* UARTPeripheral.m in Sources */ = {isa = PBXBuildFile; fileRef = EC6A78EC198B8C8A0080E169 /* UARTPeripheral.m */; };
 		EC6A78F2198B8DDF0080E169 /* CBUUID+StringExtraction.m in Sources */ = {isa = PBXBuildFile; fileRef = EC6A78F1198B8DDF0080E169 /* CBUUID+StringExtraction.m */; };
+		ECEFEB00198DD1A10062D827 /* ColorPickerImageView.m in Sources */ = {isa = PBXBuildFile; fileRef = ECEFEAFD198DD1A10062D827 /* ColorPickerImageView.m */; };
+		ECEFEB01198DD1A10062D827 /* ColorPickerLens.m in Sources */ = {isa = PBXBuildFile; fileRef = ECEFEAFF198DD1A10062D827 /* ColorPickerLens.m */; };
+		ECEFEB04198DD1D90062D827 /* color-picker.png in Resources */ = {isa = PBXBuildFile; fileRef = ECEFEB02198DD1D90062D827 /* color-picker.png */; };
+		ECEFEB05198DD1D90062D827 /* color-picker@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = ECEFEB03198DD1D90062D827 /* color-picker@2x.png */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -59,6 +63,12 @@
 		EC6A78ED198B8C8A0080E169 /* UARTPeripheral.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = UARTPeripheral.h; sourceTree = "<group>"; };
 		EC6A78F0198B8DDF0080E169 /* CBUUID+StringExtraction.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "CBUUID+StringExtraction.h"; sourceTree = "<group>"; };
 		EC6A78F1198B8DDF0080E169 /* CBUUID+StringExtraction.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "CBUUID+StringExtraction.m"; sourceTree = "<group>"; };
+		ECEFEAFC198DD1A10062D827 /* ColorPickerImageView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ColorPickerImageView.h; sourceTree = "<group>"; };
+		ECEFEAFD198DD1A10062D827 /* ColorPickerImageView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ColorPickerImageView.m; sourceTree = "<group>"; };
+		ECEFEAFE198DD1A10062D827 /* ColorPickerLens.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ColorPickerLens.h; sourceTree = "<group>"; };
+		ECEFEAFF198DD1A10062D827 /* ColorPickerLens.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ColorPickerLens.m; sourceTree = "<group>"; };
+		ECEFEB02198DD1D90062D827 /* color-picker.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "color-picker.png"; sourceTree = "<group>"; };
+		ECEFEB03198DD1D90062D827 /* color-picker@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "color-picker@2x.png"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -119,6 +129,10 @@
 			isa = PBXGroup;
 			children = (
 				EC6A78EF198B8DDF0080E169 /* Categories */,
+				ECEFEAFC198DD1A10062D827 /* ColorPickerImageView.h */,
+				ECEFEAFD198DD1A10062D827 /* ColorPickerImageView.m */,
+				ECEFEAFE198DD1A10062D827 /* ColorPickerLens.h */,
+				ECEFEAFF198DD1A10062D827 /* ColorPickerLens.m */,
 				EC6A78C6198B8C4A0080E169 /* HCAppDelegate.h */,
 				EC6A78C7198B8C4A0080E169 /* HCAppDelegate.m */,
 				EC6A78C9198B8C4A0080E169 /* Main.storyboard */,
@@ -135,6 +149,8 @@
 		EC6A78BE198B8C4A0080E169 /* Supporting Files */ = {
 			isa = PBXGroup;
 			children = (
+				ECEFEB02198DD1D90062D827 /* color-picker.png */,
+				ECEFEB03198DD1D90062D827 /* color-picker@2x.png */,
 				EC6A78BF198B8C4A0080E169 /* HatController-Info.plist */,
 				EC6A78C0198B8C4A0080E169 /* InfoPlist.strings */,
 				EC6A78C3198B8C4A0080E169 /* main.m */,
@@ -218,6 +234,9 @@
 				LastUpgradeCheck = 0510;
 				ORGANIZATIONNAME = "Gustavo Ambrozio";
 				TargetAttributes = {
+					EC6A78B3198B8C4A0080E169 = {
+						DevelopmentTeam = XG2WG7U93U;
+					};
 					EC6A78D4198B8C4A0080E169 = {
 						TestTargetID = EC6A78B3198B8C4A0080E169;
 					};
@@ -248,6 +267,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				EC6A78D0198B8C4A0080E169 /* Images.xcassets in Resources */,
+				ECEFEB04198DD1D90062D827 /* color-picker.png in Resources */,
+				ECEFEB05198DD1D90062D827 /* color-picker@2x.png in Resources */,
 				EC6A78C2198B8C4A0080E169 /* InfoPlist.strings in Resources */,
 				EC6A78CB198B8C4A0080E169 /* Main.storyboard in Resources */,
 			);
@@ -268,6 +289,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				ECEFEB01198DD1A10062D827 /* ColorPickerLens.m in Sources */,
+				ECEFEB00198DD1A10062D827 /* ColorPickerImageView.m in Sources */,
 				EC6A78CE198B8C4A0080E169 /* HCViewController.m in Sources */,
 				EC6A78F2198B8DDF0080E169 /* CBUUID+StringExtraction.m in Sources */,
 				EC6A78C4198B8C4A0080E169 /* main.m in Sources */,
@@ -338,7 +361,7 @@
 				CLANG_WARN_INT_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Developer ID Installer: Gustavo Ambrozio";
 				COPY_PHASE_STRIP = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				GCC_DYNAMIC_NO_PIC = NO;
@@ -397,10 +420,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_LAUNCHIMAGE_NAME = LaunchImage;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "HatController/HatController-Prefix.pch";
 				INFOPLIST_FILE = "HatController/HatController-Info.plist";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE = "";
 				WRAPPER_EXTENSION = app;
 			};
 			name = Debug;
@@ -410,10 +436,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_LAUNCHIMAGE_NAME = LaunchImage;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "HatController/HatController-Prefix.pch";
 				INFOPLIST_FILE = "HatController/HatController-Info.plist";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE = "";
 				WRAPPER_EXTENSION = app;
 			};
 			name = Release;
@@ -477,6 +506,7 @@
 				EC6A78E8198B8C4A0080E169 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		EC6A78E9198B8C4A0080E169 /* Build configuration list for PBXNativeTarget "HatControllerTests" */ = {
 			isa = XCConfigurationList;
@@ -485,6 +515,7 @@
 				EC6A78EB198B8C4A0080E169 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
