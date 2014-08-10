@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		EC5D91441997186200898925 /* libBeaniOSLibrary.a in Frameworks */ = {isa = PBXBuildFile; fileRef = EC5D91411997184800898925 /* libBeaniOSLibrary.a */; };
 		EC6A78B8198B8C4A0080E169 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EC6A78B7198B8C4A0080E169 /* Foundation.framework */; };
 		EC6A78BA198B8C4A0080E169 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EC6A78B9198B8C4A0080E169 /* CoreGraphics.framework */; };
 		EC6A78BC198B8C4A0080E169 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EC6A78BB198B8C4A0080E169 /* UIKit.framework */; };
@@ -30,6 +31,34 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		EC5D913C1997184800898925 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = EC5D91351997184800898925 /* Bean OSX Library.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 52D34E2418A9B455002F0C59;
+			remoteInfo = "Bean OSX Library";
+		};
+		EC5D913E1997184800898925 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = EC5D91351997184800898925 /* Bean OSX Library.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 52D34E3718A9B455002F0C59;
+			remoteInfo = "Bean OSX LibraryTests";
+		};
+		EC5D91401997184800898925 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = EC5D91351997184800898925 /* Bean OSX Library.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 969B89481908951F00AA093C;
+			remoteInfo = BeaniOSLibrary;
+		};
+		EC5D91421997185D00898925 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = EC5D91351997184800898925 /* Bean OSX Library.xcodeproj */;
+			proxyType = 1;
+			remoteGlobalIDString = 969B89471908951F00AA093C;
+			remoteInfo = BeaniOSLibrary;
+		};
 		EC6A78DA198B8C4A0080E169 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = EC6A78AC198B8C4A0080E169 /* Project object */;
@@ -40,6 +69,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		EC5D91351997184800898925 /* Bean OSX Library.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = "Bean OSX Library.xcodeproj"; path = "../Bean-iOS-OSX-SDK/Bean OSX Static Library/Bean OSX Library.xcodeproj"; sourceTree = "<group>"; };
 		EC6A78B4198B8C4A0080E169 /* HatController.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HatController.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		EC6A78B7198B8C4A0080E169 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		EC6A78B9198B8C4A0080E169 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
@@ -76,6 +106,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				EC5D91441997186200898925 /* libBeaniOSLibrary.a in Frameworks */,
 				EC6A78BA198B8C4A0080E169 /* CoreGraphics.framework in Frameworks */,
 				EC6A78BC198B8C4A0080E169 /* UIKit.framework in Frameworks */,
 				EC6A78B8198B8C4A0080E169 /* Foundation.framework in Frameworks */,
@@ -95,9 +126,20 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		EC5D91361997184800898925 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				EC5D913D1997184800898925 /* libBean OSX Library.a */,
+				EC5D913F1997184800898925 /* Bean OSX LibraryTests.xctest */,
+				EC5D91411997184800898925 /* libBeaniOSLibrary.a */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
 		EC6A78AB198B8C4A0080E169 = {
 			isa = PBXGroup;
 			children = (
+				EC5D91351997184800898925 /* Bean OSX Library.xcodeproj */,
 				EC6A78BD198B8C4A0080E169 /* HatController */,
 				EC6A78DC198B8C4A0080E169 /* HatControllerTests */,
 				EC6A78B6198B8C4A0080E169 /* Frameworks */,
@@ -200,6 +242,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				EC5D91431997185D00898925 /* PBXTargetDependency */,
 			);
 			name = HatController;
 			productName = HatController;
@@ -236,6 +279,11 @@
 				TargetAttributes = {
 					EC6A78B3198B8C4A0080E169 = {
 						DevelopmentTeam = XG2WG7U93U;
+						SystemCapabilities = {
+							com.apple.BackgroundModes = {
+								enabled = 1;
+							};
+						};
 					};
 					EC6A78D4198B8C4A0080E169 = {
 						TestTargetID = EC6A78B3198B8C4A0080E169;
@@ -253,6 +301,12 @@
 			mainGroup = EC6A78AB198B8C4A0080E169;
 			productRefGroup = EC6A78B5198B8C4A0080E169 /* Products */;
 			projectDirPath = "";
+			projectReferences = (
+				{
+					ProductGroup = EC5D91361997184800898925 /* Products */;
+					ProjectRef = EC5D91351997184800898925 /* Bean OSX Library.xcodeproj */;
+				},
+			);
 			projectRoot = "";
 			targets = (
 				EC6A78B3198B8C4A0080E169 /* HatController */,
@@ -260,6 +314,30 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXReferenceProxy section */
+		EC5D913D1997184800898925 /* libBean OSX Library.a */ = {
+			isa = PBXReferenceProxy;
+			fileType = archive.ar;
+			path = "libBean OSX Library.a";
+			remoteRef = EC5D913C1997184800898925 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		EC5D913F1997184800898925 /* Bean OSX LibraryTests.xctest */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.cfbundle;
+			path = "Bean OSX LibraryTests.xctest";
+			remoteRef = EC5D913E1997184800898925 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		EC5D91411997184800898925 /* libBeaniOSLibrary.a */ = {
+			isa = PBXReferenceProxy;
+			fileType = archive.ar;
+			path = libBeaniOSLibrary.a;
+			remoteRef = EC5D91401997184800898925 /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+/* End PBXReferenceProxy section */
 
 /* Begin PBXResourcesBuildPhase section */
 		EC6A78B2198B8C4A0080E169 /* Resources */ = {
@@ -310,6 +388,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		EC5D91431997185D00898925 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = BeaniOSLibrary;
+			targetProxy = EC5D91421997185D00898925 /* PBXContainerItemProxy */;
+		};
 		EC6A78DB198B8C4A0080E169 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = EC6A78B3198B8C4A0080E169 /* HatController */;
@@ -377,8 +460,14 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include,
+					"/Users/gustavo/Development/Bean-iOS-OSX-SDK/source/Public/",
+				);
 				IPHONEOS_DEPLOYMENT_TARGET = 7.1;
 				ONLY_ACTIVE_ARCH = YES;
+				OTHER_LDFLAGS = "-ObjC";
 				SDKROOT = iphoneos;
 			};
 			name = Debug;
@@ -409,7 +498,13 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include,
+					"/Users/gustavo/Development/Bean-iOS-OSX-SDK/source/Public/",
+				);
 				IPHONEOS_DEPLOYMENT_TARGET = 7.1;
+				OTHER_LDFLAGS = "-ObjC";
 				SDKROOT = iphoneos;
 				VALIDATE_PRODUCT = YES;
 			};

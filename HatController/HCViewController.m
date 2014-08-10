@@ -17,19 +17,29 @@ typedef enum {
 
 typedef enum {
     HatCommandGetCount = 50,
-    HatCommandResetCount,
     HatCommandSetColor,
     HatCommandChangeMode,
     HatCommandSetBrightness,
+    HatCommandSetCount,
 } HatCommand;
 
-@interface HCViewController () {
-    CBCentralManager    *cm;
-    UARTPeripheral      *currentPeripheral;
-    UIAlertView         *currentAlertView;
-}
+typedef enum {
+    AlertViewTagCancelScan = 1,
+    AlertViewTagReset,
+} AlertViewTag;
+
+@interface HCViewController ()
 
 @property (nonatomic, assign) ConnectionStatus connectionStatus;
+
+@property (nonatomic, strong) CBCentralManager *cm;
+@property (nonatomic, strong) UARTPeripheral *currentPeripheral;
+@property (nonatomic, strong) UIAlertView *currentAlertView;
+
+@property (nonatomic, strong) PTDBeanManager *beanManager;
+@property (nonatomic, strong) PTDBean *bean;
+@property (nonatomic, strong) NSMutableData *serialReceived;
+
 @property (weak, nonatomic) IBOutlet UIButton *btnConnect;
 @property (weak, nonatomic) IBOutlet UILabel *lblStatus;
 @property (weak, nonatomic) IBOutlet UITextField *txtBanner;
@@ -37,66 +47,78 @@ typedef enum {
 @property (weak, nonatomic) IBOutlet ColorPickerImageView *pickerColor;
 @property (weak, nonatomic) IBOutlet ColorPickerLens *pickerLens;
 @property (weak, nonatomic) IBOutlet UILabel *lblBrightness;
+@property (weak, nonatomic) IBOutlet UILabel *lblBattery;
+@property (weak, nonatomic) IBOutlet UILabel *lblCount;
+@property (weak, nonatomic) IBOutlet UILabel *lblAnalog;
+@property (weak, nonatomic) IBOutlet UILabel *lblAverage;
 
 @end
 
 @implementation HCViewController
 
-- (void)viewDidLoad{
-
+- (void)viewDidLoad {
     [super viewDidLoad];
 
     [self.view setAutoresizesSubviews:YES];
 
-    cm = [[CBCentralManager alloc] initWithDelegate:self queue:nil];
+    self.cm = [[CBCentralManager alloc] initWithDelegate:self queue:nil];
 
     self.connectionStatus = ConnectionStatusDisconnected;
 
     [self didTapConnect:nil];
+
+    self.serialReceived = [[NSMutableData alloc] init];
+
+    // instantiating the bean starts a scan. make sure you have you delegates implemented
+    // to receive bean info
+    self.beanManager = [[PTDBeanManager alloc] initWithDelegate:self];
+
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(applicationDidBecomeActive:)
+                                                 name:UIApplicationDidBecomeActiveNotification
+                                               object:nil];
+}
+
+- (void)applicationDidBecomeActive:(NSNotification *)notification {
+    if (self.bean) {
+        [self.bean readBatteryVoltage];
+        [self.bean readScratchBank:1];
+    }
 }
 
 - (void)scanForPeripherals {
-
     //Look for available Bluetooth LE devices
 
     //skip scanning if UART is already connected
-    NSArray *connectedPeripherals = [cm retrieveConnectedPeripheralsWithServices:@[UARTPeripheral.uartServiceUUID]];
+    NSArray *connectedPeripherals = [self.cm retrieveConnectedPeripheralsWithServices:@[UARTPeripheral.uartServiceUUID]];
     if ([connectedPeripherals count] > 0) {
         //connect to first peripheral in array
         [self connectPeripheral:[connectedPeripherals objectAtIndex:0]];
     }
-
     else {
-
-        [cm scanForPeripheralsWithServices:@[UARTPeripheral.uartServiceUUID]
+        [self.cm scanForPeripheralsWithServices:@[UARTPeripheral.uartServiceUUID]
                                    options:@{CBCentralManagerScanOptionAllowDuplicatesKey: [NSNumber numberWithBool:NO]}];
     }
-
 }
 
-
 - (void)connectPeripheral:(CBPeripheral*)peripheral {
-
     //Connect Bluetooth LE device
 
     //Clear off any pending connections
-    [cm cancelPeripheralConnection:peripheral];
+    [self.cm cancelPeripheralConnection:peripheral];
 
     //Connect
-    currentPeripheral = [[UARTPeripheral alloc] initWithPeripheral:peripheral delegate:self];
-    [cm connectPeripheral:peripheral options:@{CBConnectPeripheralOptionNotifyOnDisconnectionKey: [NSNumber numberWithBool:YES]}];
+    self.currentPeripheral = [[UARTPeripheral alloc] initWithPeripheral:peripheral delegate:self];
+    [self.cm connectPeripheral:peripheral options:@{CBConnectPeripheralOptionNotifyOnDisconnectionKey: [NSNumber numberWithBool:YES]}];
 
 }
 
-
 - (void)disconnect {
-
     //Disconnect Bluetooth LE device
 
     self.connectionStatus = ConnectionStatusDisconnected;
 
-    [cm cancelPeripheralConnection:currentPeripheral.peripheral];
-
+    [self.cm cancelPeripheralConnection:self.currentPeripheral.peripheral];
 }
 
 - (IBAction)didTapConnect:(id)sender {
@@ -106,13 +128,13 @@ typedef enum {
 
     [self scanForPeripherals];
 
-    currentAlertView = [[UIAlertView alloc] initWithTitle:@"Scanning …"
-                                                  message:nil
-                                                 delegate:self
-                                        cancelButtonTitle:@"Cancel"
-                                        otherButtonTitles:nil];
-
-    [currentAlertView show];
+    self.currentAlertView = [[UIAlertView alloc] initWithTitle:@"Scanning …"
+                                                       message:nil
+                                                      delegate:self
+                                             cancelButtonTitle:@"Cancel"
+                                             otherButtonTitles:nil];
+    self.currentAlertView.tag = AlertViewTagCancelScan;
+    [self.currentAlertView show];
 }
 
 - (IBAction)didTapSetText:(id)sender {
@@ -125,6 +147,16 @@ typedef enum {
     [self sendText:[sender titleForState:UIControlStateNormal]];
 }
 
+- (IBAction)didTapReset:(id)sender {
+    UIAlertView *view = [[UIAlertView alloc] initWithTitle:@"Are you sure"
+                                                   message:@"Sure you want to reset the count?"
+                                                  delegate:self
+                                         cancelButtonTitle:@"Cancel"
+                                         otherButtonTitles:@"YEP!", nil];
+    view.tag = AlertViewTagReset;
+    [view show];
+}
+
 - (IBAction)didChangeMode:(UISegmentedControl *)sender {
     Byte mode = (Byte)sender.selectedSegmentIndex;
     [self sendCommand:HatCommandChangeMode extraData:[NSData dataWithBytes:&mode length:1]];
@@ -134,6 +166,7 @@ typedef enum {
     Byte brightness = (Byte)roundf(sender.value);
     [self sendCommand:HatCommandSetBrightness extraData:[NSData dataWithBytes:&brightness length:1]];
 }
+
 - (IBAction)sliderBrightnessChanged:(UISlider *)sender {
     _lblBrightness.text = [NSString stringWithFormat:@"%.0f", roundf(sender.value)];
 }
@@ -189,7 +222,7 @@ typedef enum {
 - (void)sendData:(NSData*)newData {
     if (_connectionStatus == ConnectionStatusConnected) {
         //Output data to UART peripheral
-        [currentPeripheral writeRawData:newData];
+        [self.currentPeripheral writeRawData:newData];
     } else {
         [[[UIAlertView alloc] initWithTitle:@"Not Connected"
                                     message:@"Need to connect first!"
@@ -201,21 +234,14 @@ typedef enum {
 
 #pragma mark CBCentralManagerDelegate
 
-
 - (void) centralManagerDidUpdateState:(CBCentralManager*)central {
-
     if (central.state == CBCentralManagerStatePoweredOn) {
-
         //respond to powered on
     }
-
     else if (central.state == CBCentralManagerStatePoweredOff) {
-
         //respond to powered off
     }
-
 }
-
 
 - (void) centralManager:(CBCentralManager*)central
   didDiscoverPeripheral:(CBPeripheral*)peripheral
@@ -224,29 +250,27 @@ typedef enum {
 
     NSLog(@"Did discover peripheral %@", peripheral.name);
 
-    [cm stopScan];
+    [self.cm stopScan];
 
     [self connectPeripheral:peripheral];
 }
 
-
 - (void) centralManager:(CBCentralManager*)central
    didConnectPeripheral:(CBPeripheral*)peripheral {
 
-    if ([currentPeripheral.peripheral isEqual:peripheral]) {
+    if ([self.currentPeripheral.peripheral isEqual:peripheral]) {
 
         if(peripheral.services) {
             NSLog(@"Did connect to existing peripheral %@", peripheral.name);
-            [currentPeripheral peripheral:peripheral didDiscoverServices:nil]; //already discovered services, DO NOT re-discover. Just pass along the peripheral.
+            [self.currentPeripheral peripheral:peripheral didDiscoverServices:nil]; //already discovered services, DO NOT re-discover. Just pass along the peripheral.
         }
 
         else {
             NSLog(@"Did connect peripheral %@", peripheral.name);
-            [currentPeripheral didConnect];
+            [self.currentPeripheral didConnect];
         }
     }
 }
-
 
 - (void) centralManager:(CBCentralManager*)central
 didDisconnectPeripheral:(CBPeripheral*)peripheral
@@ -257,15 +281,13 @@ didDisconnectPeripheral:(CBPeripheral*)peripheral
     //respond to disconnected
     [self peripheralDidDisconnect];
 
-    if ([currentPeripheral.peripheral isEqual:peripheral])
+    if ([self.currentPeripheral.peripheral isEqual:peripheral])
     {
-        [currentPeripheral didDisconnect];
+        [self.currentPeripheral didDisconnect];
     }
 }
 
-
 #pragma mark UARTPeripheralDelegate
-
 
 - (void)didReadHardwareRevisionString:(NSString*)string {
 
@@ -274,22 +296,20 @@ didDisconnectPeripheral:(CBPeripheral*)peripheral
     NSLog(@"Connected! HW Revision: %@", string);
 
     //Bail if we aren't in the process of connecting
-    if (currentAlertView == nil){
+    if (self.currentAlertView == nil){
         return;
     }
 
     self.connectionStatus = ConnectionStatusConnected;
 
     //Dismiss Alert view & update main view
-    [currentAlertView dismissWithClickedButtonIndex:-1 animated:NO];
-    currentAlertView = nil;
+    [self.currentAlertView dismissWithClickedButtonIndex:-1 animated:NO];
+    self.currentAlertView = nil;
 }
 
-
 - (void)uartDidEncounterError:(NSString*)error {
-
     //Dismiss "scanning …" alert view if shown
-    [currentAlertView dismissWithClickedButtonIndex:0 animated:NO];
+    [self.currentAlertView dismissWithClickedButtonIndex:0 animated:NO];
 
     //Display error alert
     UIAlertView *alert = [[UIAlertView alloc]initWithTitle:@"Error"
@@ -299,12 +319,9 @@ didDisconnectPeripheral:(CBPeripheral*)peripheral
                                          otherButtonTitles:nil];
 
     [alert show];
-
 }
 
-
 - (void)didReceiveData:(NSData*)newData {
-
     //Data incoming from UART peripheral, forward to current view controller
 
     //Debug
@@ -312,19 +329,15 @@ didDisconnectPeripheral:(CBPeripheral*)peripheral
     //    NSLog(@"Received: %@", newData);
 
     if (_connectionStatus == ConnectionStatusConnected || _connectionStatus == ConnectionStatusScanning) {
-
         // TODO
-
     }
 }
 
-
 - (void)peripheralDidDisconnect {
-
     //respond to device disconnecting
 
     //if we were in the process of scanning/connecting, dismiss alert
-    if (currentAlertView != nil) {
+    if (self.currentAlertView != nil) {
         [self uartDidEncounterError:@"Peripheral disconnected"];
     }
 
@@ -347,25 +360,34 @@ didDisconnectPeripheral:(CBPeripheral*)peripheral
 
 #pragma mark UIAlertView delegate methods
 
-
 - (void)alertView:(UIAlertView*)alertView clickedButtonAtIndex:(NSInteger)buttonIndex{
 
-    //the only button in our alert views is cancel, no need to check button index
+    switch (alertView.tag) {
+        case AlertViewTagCancelScan:
+            if (_connectionStatus == ConnectionStatusConnected) {
+                [self disconnect];
+            }
+            else if (_connectionStatus == ConnectionStatusScanning){
+                [self.cm stopScan];
+            }
 
-    if (_connectionStatus == ConnectionStatusConnected) {
-        [self disconnect];
+            self.connectionStatus = ConnectionStatusDisconnected;
+            
+            self.currentAlertView = nil;
+            
+            _btnConnect.enabled = YES;
+            break;
+
+        case AlertViewTagReset:
+            if (buttonIndex == 1) {
+                [self.bean sendSerialString:@"r"];
+            }
+            break;
+
+        default:
+            break;
     }
-    else if (_connectionStatus == ConnectionStatusScanning){
-        [cm stopScan];
-    }
 
-    self.connectionStatus = ConnectionStatusDisconnected;
-
-    currentAlertView = nil;
-
-    _btnConnect.enabled = YES;
-
-    //alert dismisses automatically @ return
 }
 
 #pragma mark - ColorPickerImageViewDelegate
@@ -377,7 +399,7 @@ didDisconnectPeripheral:(CBPeripheral*)peripheral
                      }];
 
     Byte rgb[3];
-    float r, g, b, a;
+    CGFloat r, g, b, a;
     [color getRed:&r green:&g blue:&b alpha:&a];
     rgb[0] = (Byte)(r * 255.0);
     rgb[1] = (Byte)(g * 255.0);
@@ -404,6 +426,165 @@ didDisconnectPeripheral:(CBPeripheral*)peripheral
                          animations:^{
                              _pickerLens.alpha = 0.0;
                          }];
+    }
+}
+
+#pragma mark - BeanManagerDelegate Callbacks
+
+- (void)beanManagerDidUpdateState:(PTDBeanManager *)manager{
+    if(self.beanManager.state == BeanManagerState_PoweredOn){
+        [self.beanManager startScanningForBeans_error:nil];
+    }
+    else if (self.beanManager.state == BeanManagerState_PoweredOff) {
+        UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"Error"
+                                                        message:@"Turn on bluetooth to continue"
+                                                       delegate:nil
+                                              cancelButtonTitle:nil
+                                              otherButtonTitles:@"Ok", nil];
+        [alert show];
+        return;
+    }
+}
+
+- (void)BeanManager:(PTDBeanManager*)beanManager didDiscoverBean:(PTDBean*)bean error:(NSError*)error{
+    self.bean = bean;
+    self.bean.delegate = self;
+    [self.beanManager connectToBean:self.bean error:nil];
+}
+
+- (void)BeanManager:(PTDBeanManager*)beanManager didConnectToBean:(PTDBean*)bean error:(NSError*)error{
+    if (error) {
+        UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"Error"
+                                                        message:[error localizedDescription]
+                                                       delegate:nil
+                                              cancelButtonTitle:nil
+                                              otherButtonTitles:@"Ok", nil];
+        [alert show];
+        return;
+    }
+
+    [self.beanManager stopScanningForBeans_error:&error];
+    [self.bean readBatteryVoltage];
+    [self.bean readScratchBank:1];
+    if (error) {
+        UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"Error"
+                                                        message:[error localizedDescription]
+                                                       delegate:nil
+                                              cancelButtonTitle:nil
+                                              otherButtonTitles:@"Ok", nil];
+        [alert show];
+    }
+}
+
+- (void)BeanManager:(PTDBeanManager*)beanManager didDisconnectBean:(PTDBean*)bean error:(NSError*)error{
+    self.bean = nil;
+}
+
+#pragma mark BeanDelegate
+
+-(void)bean:(PTDBean*)device error:(NSError*)error {
+    UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"Error"
+                                                    message:[error localizedDescription]
+                                                   delegate:nil
+                                          cancelButtonTitle:nil
+                                          otherButtonTitles:@"Ok", nil];
+    [alert show];
+}
+
+-(void)bean:(PTDBean*)device receivedMessage:(NSData*)data {
+
+}
+
+-(void)bean:(PTDBean*)bean didUpdateAccelerationAxes:(PTDAcceleration)acceleration {
+
+}
+
+-(void)bean:(PTDBean *)bean didUpdateLoopbackPayload:(NSData *)payload {
+
+}
+
+-(void)bean:(PTDBean *)bean didUpdateLedColor:(UIColor *)color {
+
+}
+
+-(void)bean:(PTDBean *)bean didUpdatePairingPin:(UInt16)pinCode {
+
+}
+
+-(void)bean:(PTDBean *)bean didUpdateTemperature:(NSNumber *)degrees_celsius {
+
+}
+
+-(void)bean:(PTDBean*)bean didUpdateRadioConfig:(PTDBeanRadioConfig*)config {
+
+}
+
+-(void)bean:(PTDBean *)bean didUpdateScratchNumber:(NSNumber *)number withValue:(NSData *)data {
+    Byte *bytes = (Byte *)data.bytes;
+    switch (number.intValue) {
+        case 1:     // count
+        {
+            uint16_t count = bytes[0] + (bytes[1] << 8);
+            uint32_t sensorHistoryAvg = bytes[2] + (bytes[3] << 8) + (bytes[4] << 16) + (bytes[5] << 24);
+            uint16_t sensorValue = bytes[6] + (bytes[7] << 8);
+            _lblCount.text = [NSString stringWithFormat:@"%d", count];
+            _lblAnalog.text = [NSString stringWithFormat:@"%d", sensorValue];
+            _lblAverage.text = [NSString stringWithFormat:@"%d", sensorHistoryAvg];
+            if ([UIApplication sharedApplication].applicationState == UIApplicationStateActive) {
+                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                    [self.bean readScratchBank:1];
+                });
+            }
+            break;
+        }
+
+        default:
+            break;
+    }
+}
+
+- (void)beanDidUpdateBatteryVoltage:(PTDBean *)bean error:(NSError *)error {
+    _lblBattery.text = [NSString stringWithFormat:@"%.2fV", bean.batteryVoltage.doubleValue];
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(30 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        [self.bean readBatteryVoltage];
+    });
+}
+
+- (void)bean:(PTDBean *)bean serialDataReceived:(NSData *)data {
+    NSLog(@"Received serial %@", data);
+    [self.serialReceived appendData:data];
+    NSString *serialString = [[NSString alloc] initWithData:self.serialReceived encoding:NSUTF8StringEncoding];
+    NSUInteger location;
+    while ((location = [serialString rangeOfString:@"\r\n"].location) != NSNotFound) {
+        NSString *substring = [serialString substringToIndex:location];
+        serialString = [serialString substringFromIndex:location + 2];
+        NSArray *tokens = [substring componentsSeparatedByString:@":"];
+        if (tokens.count == 2) {
+            if ([tokens[0] isEqualToString:@"count"]) {
+                uint16_t count = [tokens[1] integerValue];
+                [UIApplication sharedApplication].applicationIconBadgeNumber = count;
+                [self sendCommand:HatCommandSetCount extraData:[NSData dataWithBytes:&count length:sizeof(count)]];
+
+                _lblCount.text = [NSString stringWithFormat:@"%d", count];
+
+                UILocalNotification *notification = [[UILocalNotification alloc] init];
+                notification.alertAction = @"Cool!";
+                notification.alertBody = [NSString stringWithFormat:@"%d hugs served and counting!", count];
+                notification.applicationIconBadgeNumber = count;
+                notification.soundName = UILocalNotificationDefaultSoundName;
+                [[UIApplication sharedApplication] scheduleLocalNotification:notification];
+            }
+        } else {
+            NSLog(@"Wrong string: %@", substring);
+        }
+    }
+    location = [self.serialReceived rangeOfData:[@"\r\n" dataUsingEncoding:NSUTF8StringEncoding]
+                                        options:NSDataSearchBackwards
+                                          range:NSMakeRange(0, self.serialReceived.length)].location;
+    if (location != NSNotFound) {
+        [self.serialReceived replaceBytesInRange:NSMakeRange(0, location + 2)
+                                       withBytes:nil
+                                          length:0];
     }
 }
 

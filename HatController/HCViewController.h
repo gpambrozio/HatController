@@ -9,9 +9,10 @@
 #import <CoreBluetooth/CoreBluetooth.h>
 #import <UIKit/UIKit.h>
 
-#import "UARTPeripheral.h"
 #import "ColorPickerImageView.h"
+#import "PTDBeanManager.h"
+#import "UARTPeripheral.h"
 
-@interface HCViewController : UIViewController <CBCentralManagerDelegate, UARTPeripheralDelegate, ColorPickerImageViewDelegate>
+@interface HCViewController : UIViewController <CBCentralManagerDelegate, UARTPeripheralDelegate, ColorPickerImageViewDelegate, PTDBeanDelegate, PTDBeanManagerDelegate>
 
 @end
