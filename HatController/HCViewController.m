@@ -24,8 +24,7 @@ typedef enum {
 } HatCommand;
 
 typedef enum {
-    AlertViewTagCancelScan = 1,
-    AlertViewTagReset,
+    AlertViewTagReset = 1,
 } AlertViewTag;
 
 @interface HCViewController ()
@@ -34,7 +33,6 @@ typedef enum {
 
 @property (nonatomic, strong) CBCentralManager *cm;
 @property (nonatomic, strong) UARTPeripheral *currentPeripheral;
-@property (nonatomic, strong) UIAlertView *currentAlertView;
 
 @property (nonatomic, strong) PTDBeanManager *beanManager;
 @property (nonatomic, strong) PTDBean *bean;
@@ -64,7 +62,6 @@ typedef enum {
     self.cm = [[CBCentralManager alloc] initWithDelegate:self queue:nil];
 
     self.connectionStatus = ConnectionStatusDisconnected;
-
     [self didTapConnect:nil];
 
     self.serialReceived = [[NSMutableData alloc] init];
@@ -97,7 +94,7 @@ typedef enum {
     }
     else {
         [self.cm scanForPeripheralsWithServices:@[UARTPeripheral.uartServiceUUID]
-                                   options:@{CBCentralManagerScanOptionAllowDuplicatesKey: [NSNumber numberWithBool:NO]}];
+                                        options:@{CBCentralManagerScanOptionAllowDuplicatesKey:@(NO)}];
     }
 }
 
@@ -108,33 +105,30 @@ typedef enum {
     [self.cm cancelPeripheralConnection:peripheral];
 
     //Connect
-    self.currentPeripheral = [[UARTPeripheral alloc] initWithPeripheral:peripheral delegate:self];
-    [self.cm connectPeripheral:peripheral options:@{CBConnectPeripheralOptionNotifyOnDisconnectionKey: [NSNumber numberWithBool:YES]}];
+    self.currentPeripheral = [[UARTPeripheral alloc] initWithPeripheral:peripheral
+                                                               delegate:self];
+    [self.cm connectPeripheral:peripheral
+                       options:@{CBConnectPeripheralOptionNotifyOnDisconnectionKey:@(YES)}];
 
-}
-
-- (void)disconnect {
-    //Disconnect Bluetooth LE device
-
-    self.connectionStatus = ConnectionStatusDisconnected;
-
-    [self.cm cancelPeripheralConnection:self.currentPeripheral.peripheral];
 }
 
 - (IBAction)didTapConnect:(id)sender {
-    self.connectionStatus = ConnectionStatusScanning;
+    if (self.connectionStatus == ConnectionStatusDisconnected) {
+        self.connectionStatus = ConnectionStatusScanning;
+        [_btnConnect setTitle:@"Cancel" forState:UIControlStateNormal];
 
-    _btnConnect.enabled = NO;
+        [self scanForPeripherals];
+    } else if (_connectionStatus == ConnectionStatusConnected) {
+        self.connectionStatus = ConnectionStatusDisconnected;
+        [_btnConnect setTitle:@"Connect" forState:UIControlStateNormal];
 
-    [self scanForPeripherals];
+        [self.cm cancelPeripheralConnection:self.currentPeripheral.peripheral];
+    } else if (_connectionStatus == ConnectionStatusScanning){
+        self.connectionStatus = ConnectionStatusDisconnected;
+        [_btnConnect setTitle:@"Connect" forState:UIControlStateNormal];
 
-    self.currentAlertView = [[UIAlertView alloc] initWithTitle:@"Scanning …"
-                                                       message:nil
-                                                      delegate:self
-                                             cancelButtonTitle:@"Cancel"
-                                             otherButtonTitles:nil];
-    self.currentAlertView.tag = AlertViewTagCancelScan;
-    [self.currentAlertView show];
+        [self.cm stopScan];
+    }
 }
 
 - (IBAction)didTapSetText:(id)sender {
@@ -296,29 +290,21 @@ didDisconnectPeripheral:(CBPeripheral*)peripheral
     NSLog(@"Connected! HW Revision: %@", string);
 
     //Bail if we aren't in the process of connecting
-    if (self.currentAlertView == nil){
+    if (self.connectionStatus != ConnectionStatusScanning) {
         return;
     }
 
     self.connectionStatus = ConnectionStatusConnected;
-
-    //Dismiss Alert view & update main view
-    [self.currentAlertView dismissWithClickedButtonIndex:-1 animated:NO];
-    self.currentAlertView = nil;
+    [_btnConnect setTitle:@"Disconnect" forState:UIControlStateNormal];
 }
 
 - (void)uartDidEncounterError:(NSString*)error {
-    //Dismiss "scanning …" alert view if shown
-    [self.currentAlertView dismissWithClickedButtonIndex:0 animated:NO];
-
     //Display error alert
-    UIAlertView *alert = [[UIAlertView alloc]initWithTitle:@"Error"
-                                                   message:error
-                                                  delegate:nil
-                                         cancelButtonTitle:@"OK"
-                                         otherButtonTitles:nil];
-
-    [alert show];
+    [[[UIAlertView alloc] initWithTitle:@"Error"
+                                message:error
+                               delegate:nil
+                      cancelButtonTitle:@"OK"
+                      otherButtonTitles:nil] show];
 }
 
 - (void)didReceiveData:(NSData*)newData {
@@ -337,20 +323,23 @@ didDisconnectPeripheral:(CBPeripheral*)peripheral
     //respond to device disconnecting
 
     //if we were in the process of scanning/connecting, dismiss alert
-    if (self.currentAlertView != nil) {
-        [self uartDidEncounterError:@"Peripheral disconnected"];
+    if (self.connectionStatus == ConnectionStatusScanning) {
+        [[[UIAlertView alloc] initWithTitle:@"Error"
+                                    message:@"Peripheral disconnected"
+                                   delegate:nil
+                          cancelButtonTitle:@"OK"
+                          otherButtonTitles:nil] show];
     }
 
     //display disconnect alert
-    UIAlertView *alert = [[UIAlertView alloc]initWithTitle:@"Disconnected"
-                                                   message:@"BLE peripheral has disconnected"
-                                                  delegate:nil
-                                         cancelButtonTitle:@"OK"
-                                         otherButtonTitles: nil];
-
-    [alert show];
+    [[[UIAlertView alloc] initWithTitle:@"Disconnected"
+                                message:@"BLE peripheral has disconnected"
+                               delegate:nil
+                      cancelButtonTitle:@"OK"
+                      otherButtonTitles: nil] show];
 
     self.connectionStatus = ConnectionStatusDisconnected;
+    [_btnConnect setTitle:@"Connect" forState:UIControlStateNormal];
 
     //make reconnection available after short delay
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
@@ -360,24 +349,8 @@ didDisconnectPeripheral:(CBPeripheral*)peripheral
 
 #pragma mark UIAlertView delegate methods
 
-- (void)alertView:(UIAlertView*)alertView clickedButtonAtIndex:(NSInteger)buttonIndex{
-
+- (void)alertView:(UIAlertView*)alertView clickedButtonAtIndex:(NSInteger)buttonIndex {
     switch (alertView.tag) {
-        case AlertViewTagCancelScan:
-            if (_connectionStatus == ConnectionStatusConnected) {
-                [self disconnect];
-            }
-            else if (_connectionStatus == ConnectionStatusScanning){
-                [self.cm stopScan];
-            }
-
-            self.connectionStatus = ConnectionStatusDisconnected;
-            
-            self.currentAlertView = nil;
-            
-            _btnConnect.enabled = YES;
-            break;
-
         case AlertViewTagReset:
             if (buttonIndex == 1) {
                 [self.bean sendSerialString:@"r"];
@@ -387,7 +360,6 @@ didDisconnectPeripheral:(CBPeripheral*)peripheral
         default:
             break;
     }
-
 }
 
 #pragma mark - ColorPickerImageViewDelegate
@@ -431,18 +403,15 @@ didDisconnectPeripheral:(CBPeripheral*)peripheral
 
 #pragma mark - BeanManagerDelegate Callbacks
 
-- (void)beanManagerDidUpdateState:(PTDBeanManager *)manager{
-    if(self.beanManager.state == BeanManagerState_PoweredOn){
+- (void)beanManagerDidUpdateState:(PTDBeanManager *)manager {
+    if (self.beanManager.state == BeanManagerState_PoweredOn) {
         [self.beanManager startScanningForBeans_error:nil];
-    }
-    else if (self.beanManager.state == BeanManagerState_PoweredOff) {
-        UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"Error"
-                                                        message:@"Turn on bluetooth to continue"
-                                                       delegate:nil
-                                              cancelButtonTitle:nil
-                                              otherButtonTitles:@"Ok", nil];
-        [alert show];
-        return;
+    } else if (self.beanManager.state == BeanManagerState_PoweredOff) {
+        [[[UIAlertView alloc] initWithTitle:@"Error"
+                                    message:@"Turn on bluetooth to continue"
+                                   delegate:nil
+                          cancelButtonTitle:nil
+                          otherButtonTitles:@"Ok", nil] show];
     }
 }
 
@@ -454,12 +423,11 @@ didDisconnectPeripheral:(CBPeripheral*)peripheral
 
 - (void)BeanManager:(PTDBeanManager*)beanManager didConnectToBean:(PTDBean*)bean error:(NSError*)error{
     if (error) {
-        UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"Error"
-                                                        message:[error localizedDescription]
-                                                       delegate:nil
-                                              cancelButtonTitle:nil
-                                              otherButtonTitles:@"Ok", nil];
-        [alert show];
+        [[[UIAlertView alloc] initWithTitle:@"Error"
+                                    message:[error localizedDescription]
+                                   delegate:nil
+                          cancelButtonTitle:nil
+                          otherButtonTitles:@"Ok", nil] show];
         return;
     }
 
@@ -467,28 +435,27 @@ didDisconnectPeripheral:(CBPeripheral*)peripheral
     [self.bean readBatteryVoltage];
     [self.bean readScratchBank:1];
     if (error) {
-        UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"Error"
-                                                        message:[error localizedDescription]
-                                                       delegate:nil
-                                              cancelButtonTitle:nil
-                                              otherButtonTitles:@"Ok", nil];
-        [alert show];
+        [[[UIAlertView alloc] initWithTitle:@"Error"
+                                    message:[error localizedDescription]
+                                   delegate:nil
+                          cancelButtonTitle:nil
+                          otherButtonTitles:@"Ok", nil] show];
     }
 }
 
 - (void)BeanManager:(PTDBeanManager*)beanManager didDisconnectBean:(PTDBean*)bean error:(NSError*)error{
     self.bean = nil;
+    [self.beanManager startScanningForBeans_error:nil];
 }
 
 #pragma mark BeanDelegate
 
 -(void)bean:(PTDBean*)device error:(NSError*)error {
-    UIAlertView *alert = [[UIAlertView alloc] initWithTitle:@"Error"
-                                                    message:[error localizedDescription]
-                                                   delegate:nil
-                                          cancelButtonTitle:nil
-                                          otherButtonTitles:@"Ok", nil];
-    [alert show];
+    [[[UIAlertView alloc] initWithTitle:@"Error"
+                                message:[error localizedDescription]
+                               delegate:nil
+                      cancelButtonTitle:nil
+                      otherButtonTitles:@"Ok", nil] show];
 }
 
 -(void)bean:(PTDBean*)device receivedMessage:(NSData*)data {
