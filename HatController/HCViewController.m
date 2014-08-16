@@ -9,6 +9,9 @@
 #import "HCViewController.h"
 #import "ColorPickerLens.h"
 
+#define kBeanIdentifierSuspenders   @"8257075A-300A-48B0-66DA-6189D6C7F135"
+#define kBeanIdentifierDisplay      @"53B08E68-1525-F223-A098-FFE1043D9158"
+
 typedef enum {
     ConnectionStatusDisconnected = 0,
     ConnectionStatusScanning,
@@ -35,7 +38,8 @@ typedef enum {
 @property (nonatomic, strong) UARTPeripheral *currentPeripheral;
 
 @property (nonatomic, strong) PTDBeanManager *beanManager;
-@property (nonatomic, strong) PTDBean *bean;
+@property (nonatomic, strong) PTDBean *beanSuspenders;
+@property (nonatomic, strong) PTDBean *beanDisplay;
 @property (nonatomic, strong) NSMutableData *serialReceived;
 @property (nonatomic, assign) BOOL notifyConnected;
 @property (nonatomic, assign) BOOL notifyBatteryLow;
@@ -86,9 +90,9 @@ typedef enum {
 }
 
 - (void)applicationDidBecomeActive:(NSNotification *)notification {
-    if (self.bean) {
-        [self.bean readBatteryVoltage];
-        [self.bean readScratchBank:1];
+    if (self.beanSuspenders) {
+        [self.beanSuspenders readBatteryVoltage];
+        [self.beanSuspenders readScratchBank:1];
     }
 }
 
@@ -363,7 +367,7 @@ didDisconnectPeripheral:(CBPeripheral*)peripheral
     switch (alertView.tag) {
         case AlertViewTagReset:
             if (buttonIndex == 1) {
-                [self.bean sendSerialString:@"r"];
+                [self.beanSuspenders sendSerialString:@"r"];
             }
             break;
 
@@ -411,6 +415,16 @@ didDisconnectPeripheral:(CBPeripheral*)peripheral
     }
 }
 
+- (void)updateCount {
+    if (_count > 0) {
+        if (self.beanDisplay) {
+            NSString *countString = [NSString stringWithFormat:@"%d", _count];
+            [self.beanDisplay setScratchNumber:1 withValue:[countString dataUsingEncoding:NSUTF8StringEncoding]];
+        }
+        [self sendCommand:HatCommandSetCount extraData:[NSData dataWithBytes:&_count length:sizeof(_count)]];
+    }
+}
+
 #pragma mark - BeanManagerDelegate Callbacks
 
 - (void)beanManagerDidUpdateState:(PTDBeanManager *)manager {
@@ -422,7 +436,10 @@ didDisconnectPeripheral:(CBPeripheral*)peripheral
 }
 
 - (void)BeanManager:(PTDBeanManager*)beanManager didDiscoverBean:(PTDBean*)bean error:(NSError*)error{
-    [self.beanManager connectToBean:bean error:nil];
+    if ([bean.identifier.UUIDString isEqualToString:kBeanIdentifierSuspenders] ||
+        [bean.identifier.UUIDString isEqualToString:kBeanIdentifierDisplay]) {
+        [self.beanManager connectToBean:bean error:nil];
+    }
 }
 
 - (void)BeanManager:(PTDBeanManager*)beanManager didConnectToBean:(PTDBean*)bean error:(NSError*)error{
@@ -436,34 +453,47 @@ didDisconnectPeripheral:(CBPeripheral*)peripheral
         [self setStatus:[NSString stringWithFormat:@"Bean error: %@", error] sendNotification:NO];
         return;
     }
-    self.bean = bean;
-    self.bean.delegate = self;
-    [self.bean readBatteryVoltage];
-    [self.bean readScratchBank:1];
+    if ([bean.identifier.UUIDString isEqualToString:kBeanIdentifierSuspenders]) {
+        self.beanSuspenders = bean;
+        self.beanSuspenders.delegate = self;
+        [self.beanSuspenders readBatteryVoltage];
+        [self.beanSuspenders readScratchBank:1];
+    }
+    else if ([bean.identifier.UUIDString isEqualToString:kBeanIdentifierDisplay]) {
+        self.beanDisplay = bean;
+        self.beanDisplay.delegate = self;
+        [self updateCount];
+    }
     [self setStatus:@"Bean connected!" sendNotification:self.notifyConnected];
     self.notifyConnected = NO;
 }
 
 - (void)BeanManager:(PTDBeanManager*)beanManager didDisconnectBean:(PTDBean*)bean error:(NSError*)error{
-    self.bean = nil;
-    [self.beanManager startScanningForBeans_error:nil];
-    [self setStatus:[NSString stringWithFormat:@"Bean disconnected: %@", error] sendNotification:NO];
-    __block UIBackgroundTaskIdentifier taskIdentifier = UIBackgroundTaskInvalid;
-    void(^expirationHandler)() = ^{
-        if (taskIdentifier != UIBackgroundTaskInvalid) {
-            [[UIApplication sharedApplication] endBackgroundTask:taskIdentifier];
-            taskIdentifier = UIBackgroundTaskInvalid;
-        }
-    };
+    if ([bean.identifier.UUIDString isEqualToString:kBeanIdentifierSuspenders]) {
+        self.beanSuspenders = nil;
+        [self setStatus:[NSString stringWithFormat:@"Bean disconnected: %@", error] sendNotification:NO];
 
-    taskIdentifier = [[UIApplication sharedApplication] beginBackgroundTaskWithExpirationHandler:expirationHandler];
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(30 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        if (self.bean == nil) {
-            [self sendNotification:[NSString stringWithFormat:@"Bean disconnected: %@", error]];
-            self.notifyConnected = YES;
-        }
-        expirationHandler();
-    });
+        __block UIBackgroundTaskIdentifier taskIdentifier = UIBackgroundTaskInvalid;
+        void(^expirationHandler)() = ^{
+            if (taskIdentifier != UIBackgroundTaskInvalid) {
+                [[UIApplication sharedApplication] endBackgroundTask:taskIdentifier];
+                taskIdentifier = UIBackgroundTaskInvalid;
+            }
+        };
+
+        taskIdentifier = [[UIApplication sharedApplication] beginBackgroundTaskWithExpirationHandler:expirationHandler];
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(30 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            if (self.beanSuspenders == nil) {
+                [self sendNotification:[NSString stringWithFormat:@"Bean disconnected: %@", error]];
+                self.notifyConnected = YES;
+            }
+            expirationHandler();
+        });
+    }
+    else if ([bean.identifier.UUIDString isEqualToString:kBeanIdentifierDisplay]) {
+        self.beanDisplay = nil;
+    }
+    [self.beanManager startScanningForBeans_error:nil];
 }
 
 #pragma mark BeanDelegate
@@ -505,20 +535,25 @@ didDisconnectPeripheral:(CBPeripheral*)peripheral
     switch (number.intValue) {
         case 1:     // count
         {
-            _count = bytes[0] + (bytes[1] << 8);
+            uint16_t count = bytes[0] + (bytes[1] << 8);
             uint16_t sensorValue = bytes[2] + (bytes[3] << 8);
             uint32_t sensorHistoryAvg = bytes[4] + (bytes[5] << 8) + (bytes[6] << 16) + (bytes[7] << 24);
             uint32_t loopCount = bytes[8] + (bytes[9] << 8) + (bytes[10] << 16) + (bytes[11] << 24);
             uint32_t nextPing = bytes[12] + (bytes[13] << 8) + (bytes[14] << 16) + (bytes[15] << 24);
-            [UIApplication sharedApplication].applicationIconBadgeNumber = _count;
-            _lblCount.text = [NSString stringWithFormat:@"%d", _count];
+
+            if (count != _count) {
+                _count = count;
+                [UIApplication sharedApplication].applicationIconBadgeNumber = _count;
+                _lblCount.text = [NSString stringWithFormat:@"%d", _count];
+                [self updateCount];
+            }
             _lblAnalog.text = [NSString stringWithFormat:@"%d", sensorValue];
             _lblAverage.text = [NSString stringWithFormat:@"%d", sensorHistoryAvg];
             _lblLoopNumber.text = [NSString stringWithFormat:@"%d", loopCount];
             _lblNextPing.text = [NSString stringWithFormat:@"%d", nextPing];
             if ([UIApplication sharedApplication].applicationState == UIApplicationStateActive) {
                 dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-                    [self.bean readScratchBank:1];
+                    [self.beanSuspenders readScratchBank:1];
                 });
             }
             break;
@@ -530,15 +565,17 @@ didDisconnectPeripheral:(CBPeripheral*)peripheral
 }
 
 - (void)beanDidUpdateBatteryVoltage:(PTDBean *)bean error:(NSError *)error {
-    _lblBattery.text = [NSString stringWithFormat:@"%.2fV", bean.batteryVoltage.doubleValue];
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(30 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        [self.bean readBatteryVoltage];
-    });
-    if (bean.batteryVoltage.doubleValue < 2.10) {
-        [self setStatus:[NSString stringWithFormat:@"Battery low: %.2fV", bean.batteryVoltage.doubleValue] sendNotification:self.notifyBatteryLow];
-        self.notifyBatteryLow = NO;
-    } else if (bean.batteryVoltage.doubleValue >= 2.50) {
-        self.notifyBatteryLow = YES;
+    if ([bean.identifier.UUIDString isEqualToString:kBeanIdentifierSuspenders]) {
+        _lblBattery.text = [NSString stringWithFormat:@"%.2fV", bean.batteryVoltage.doubleValue];
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(30 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            [self.beanSuspenders readBatteryVoltage];
+        });
+        if (bean.batteryVoltage.doubleValue < 2.10) {
+            [self setStatus:[NSString stringWithFormat:@"Battery low: %.2fV", bean.batteryVoltage.doubleValue] sendNotification:self.notifyBatteryLow];
+            self.notifyBatteryLow = NO;
+        } else if (bean.batteryVoltage.doubleValue >= 2.50) {
+            self.notifyBatteryLow = YES;
+        }
     }
 }
 
@@ -555,8 +592,8 @@ didDisconnectPeripheral:(CBPeripheral*)peripheral
         if (tokens.count == 2) {
             if ([tokens[0] isEqualToString:@"count"]) {
                 _count = [tokens[1] integerValue];
+                [self updateCount];
                 [UIApplication sharedApplication].applicationIconBadgeNumber = _count;
-                [self sendCommand:HatCommandSetCount extraData:[NSData dataWithBytes:&_count length:sizeof(_count)]];
 
                 _lblCount.text = [NSString stringWithFormat:@"%d", _count];
 
@@ -564,7 +601,7 @@ didDisconnectPeripheral:(CBPeripheral*)peripheral
             }
 
             else if ([tokens[0] isEqualToString:@"battery"]) {
-                [self.bean readBatteryVoltage];
+                [self.beanSuspenders readBatteryVoltage];
             }
 
             else if ([tokens[0] isEqualToString:@"ping"]) {
